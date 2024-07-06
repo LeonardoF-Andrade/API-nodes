@@ -1,5 +1,5 @@
 const AppError = require("../utils/AppError");
-const { hash , compare} = require("bcryptjs");
+const { hash, compare } = require("bcryptjs");
 const sqliteConnection = require("../database/sqlite");
 
 class UserControllers {
@@ -29,11 +29,13 @@ class UserControllers {
 
   async update(request, response) {
     const { name, email, password, old_password } = request.body;
-    const { id } = request.params;
+    const user_id = request.user.id;
 
     const database = await sqliteConnection();
 
-    const user = await database.get("SELECT * FROM users WHERE id = (?)", [id]);
+    const user = await database.get("SELECT * FROM users WHERE id = (?)", [
+      user_id,
+    ]);
 
     if (!user) {
       throw new AppError("User not found");
@@ -47,7 +49,6 @@ class UserControllers {
     if (userWithUpdatedEmail && userWithUpdatedEmail.id !== user.id) {
       throw new AppError("Email already in use");
     }
-
 
     user.name = name ?? user.name;
     user.email = email ?? user.email;
@@ -68,8 +69,8 @@ class UserControllers {
 
     await database.run(
       `UPDATE users SET name = ?, email = ?, updated_at = DATETIME('now'), password = ? WHERE id = (?)`,
-      [user.name, user.email, user.password, id]
-    )
+      [user.name, user.email, user.password, user_id]
+    );
 
     return response.json();
   }

@@ -3,7 +3,7 @@ const knex = require("../database/knex");
 class NotesController {
   async create(request, response) {
     const { title, description, tags, links } = request.body;
-    const { user_id } = request.params;
+    const user_id = request.user.id;
 
     const [note_id] = await knex("notes").insert({
       title,
@@ -57,26 +57,34 @@ class NotesController {
   }
 
   async index(request, response) {
-    const { user_id, title, tags} = request.query;
-    let notes;
-    if (tags){
-      const filterTags = tags.split(',').map(tag => tag.trim());
-      notes = await knex("tags").select(["notes.id","notes.title","notes.user_id"]).where("notes.user_id" , user_id).whereLike("notes.title", `%${title}%`).whereIn("name", filterTags).innerJoin("notes", "notes.id", "tags.note_id")// the innerJoin "notes" is the table who u want join, and "notes.id" and "tags.note_id" is the column in common in both tables
+    const { title, tags } = request.query;
 
-    }else{ notes = await knex("notes")
-      .where({ user_id })
-      .whereLike("title", `%${title}%`)  //This is for search, in "title" column the value must contain the string passed in the query, and teh % in the start and the end is for search the word in nay position of the string
-      .orderBy("Title");
+    const user_id = request.user.id;
+
+    let notes;
+    if (tags) {
+      const filterTags = tags.split(",").map((tag) => tag.trim());
+      notes = await knex("tags")
+        .select(["notes.id", "notes.title", "notes.user_id"])
+        .where("notes.user_id", user_id)
+        .whereLike("notes.title", `%${title}%`)
+        .whereIn("name", filterTags)
+        .innerJoin("notes", "notes.id", "tags.note_id"); // the innerJoin "notes" is the table who u want join, and "notes.id" and "tags.note_id" is the column in common in both tables
+    } else {
+      notes = await knex("notes")
+        .where({ user_id })
+        .whereLike("title", `%${title}%`) //This is for search, in "title" column the value must contain the string passed in the query, and teh % in the start and the end is for search the word in nay position of the string
+        .orderBy("Title");
     }
 
     const userTags = await knex("tags").where({ user_id });
-    const notesWhitTags = notes.map(note =>{
-      const noteTags = userTags.filter(tag => tag.note_id === note.id);
+    const notesWhitTags = notes.map((note) => {
+      const noteTags = userTags.filter((tag) => tag.note_id === note.id);
       return {
         ...note,
-        tags: noteTags
-      }
-    })
+        tags: noteTags,
+      };
+    });
 
     return response.json(notesWhitTags);
   }
